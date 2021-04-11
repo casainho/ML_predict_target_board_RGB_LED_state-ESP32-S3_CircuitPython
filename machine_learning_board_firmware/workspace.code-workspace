@@ -1,0 +1,16 @@
+{
+	"folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../nRF5_SDK_16.0.0"
+    }
+  ],
+  "settings": {
+    "git.ignoreLimitWarning": true,
+    "files.associations": {
+      "nrf_assert.h": "c"
+    }
+  }
+}
