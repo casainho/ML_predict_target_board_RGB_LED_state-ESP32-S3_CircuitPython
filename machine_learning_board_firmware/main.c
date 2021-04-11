@@ -71,6 +71,7 @@
 #include "peer_manager.h"
 #include "peer_manager_handler.h"
 #include "fds.h"
+#include "nrf_delay.h"
 
 #if defined (UART_PRESENT)
 #include "nrf_uart.h"
@@ -766,20 +767,19 @@ int main(void)
   {
     idle_state_handle();
 
-    static uint8_t ui8_data;
-    static uint16_t ui16_len;
+    nrf_delay_ms(100);
 
-    ui16_len = 1;
+    static uint8_t ui8_data[2];
+    static uint16_t ui16_len;
+    
+    ui16_len = 2;
+    ui8_data[1] = ',';
     if (m_conn_handle != BLE_CONN_HANDLE_INVALID) 
     {
-      err_code = ble_nus_data_send(&m_nus, &ui8_data, &ui16_len, m_conn_handle);
+      err_code = ble_nus_data_send(&m_nus, ui8_data, &ui16_len, m_conn_handle);
       if (err_code == NRF_SUCCESS)
       {
-        ui8_data = 0;
-      }
-      else
-      {
-        ui8_data++;
+        ui8_data[0] = (ui8_data[0] + 1) % 100;
       }
     }
   }
