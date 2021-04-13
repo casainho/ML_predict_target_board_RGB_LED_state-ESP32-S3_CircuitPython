@@ -48,9 +48,10 @@
  * This application uses the @ref srvlib_conn_params module.
  */
 
-
-#include <stdint.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include "nordic_common.h"
 #include "nrf.h"
 #include "ble_hci.h"
@@ -72,6 +73,7 @@
 #include "peer_manager_handler.h"
 #include "fds.h"
 #include "nrf_delay.h"
+
 
 #if defined (UART_PRESENT)
 #include "nrf_uart.h"
@@ -746,8 +748,35 @@ static void peer_manager_init(void)
   APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Application main function.
- */
+/**
+ * C++ version 0.4 char* style "itoa":
+ * Written by Lukás Chmela
+ * Released under GPLv3.
+  */
+char* itoa(int value, char* result, int base) {
+  // check that the base if valid
+  if (base < 2 || base > 36) { *result = '\0'; return result; }
+
+  char* ptr = result, *ptr1 = result, tmp_char;
+  int tmp_value;
+
+  do {
+    tmp_value = value;
+    value /= base;
+    *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
+  } while ( value );
+
+  // Apply negative sign
+  if (tmp_value < 0) *ptr++ = '-';
+  *ptr-- = '\0';
+  while(ptr1 < ptr) {
+    tmp_char = *ptr;
+    *ptr--= *ptr1;
+    *ptr1++ = tmp_char;
+  }
+  return result;
+}
+
 int main(void)
 {
   timers_init();
@@ -767,19 +796,30 @@ int main(void)
   {
     idle_state_handle();
 
-    nrf_delay_ms(100);
+    nrf_delay_ms(50);
 
-    static uint8_t ui8_data[2];
+    uint8_t ui8_buffer[4];
+    static uint8_t ui8_value = 0;
     static uint16_t ui16_len;
     
-    ui16_len = 2;
-    ui8_data[1] = ',';
+    ui16_len = 3;
     if (m_conn_handle != BLE_CONN_HANDLE_INVALID) 
     {
-      err_code = ble_nus_data_send(&m_nus, ui8_data, &ui16_len, m_conn_handle);
+      itoa(ui8_value, (char *)ui8_buffer, 10);
+      
+      if (ui8_value < 10)
+        ui16_len = 2;
+      else if (ui8_value < 100)
+        ui16_len = 3;
+      else if (ui8_value < 1000)
+        ui16_len = 4;
+
+      ui8_buffer[ui16_len - 1] = ',';
+
+      err_code = ble_nus_data_send(&m_nus, ui8_buffer, &ui16_len, m_conn_handle);
       if (err_code == NRF_SUCCESS)
       {
-        ui8_data[0] = (ui8_data[0] + 1) % 100;
+        ui8_value = (ui8_value + 1) % 100;
       }
     }
   }
