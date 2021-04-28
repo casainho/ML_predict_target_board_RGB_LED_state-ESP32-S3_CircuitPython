@@ -84,6 +84,10 @@ SRC_FILES += \
 	$(SDK_ROOT)/components/libraries/fds/fds.c \
 	$(SDK_ROOT)/components/libraries/fstorage/nrf_fstorage.c \
 	$(SDK_ROOT)/components/libraries/fstorage/nrf_fstorage_sd.c \
+	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_saadc.c \
+	$(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_ppi.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_ppi.c \
+	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c \
 	$(PROJ_DIR)/main.c \
 
 # Include folders common to all targets

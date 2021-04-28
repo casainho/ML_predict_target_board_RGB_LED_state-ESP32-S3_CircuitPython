@@ -10,9 +10,7 @@ class MyDelegate(btle.DefaultDelegate):
         btle.DefaultDelegate.__init__(self)
 
     def handleNotification(self, cHandle, data):
-        c_data = binascii.b2a_hex(data)
-        #print( c_data)
-        print(data.decode(), end='', flush=True)
+        print(data.decode(), flush=True)
 
 class SensorNUS(Peripheral):
     def __init__(self, addr):
