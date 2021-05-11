@@ -51,31 +51,58 @@ static void lfclk_config(void)
 
 int main(void)
 {
-  // uint8_t leds_state = 0;
+  uint8_t leds_state = 0;
+  uint8_t button_state = 0;
+  uint8_t button_state_previous = 0;
+  uint8_t state = 0;
 
   lfclk_config(); // needed by the APP_TIMER
 
   nrf_gpio_cfg_output(LED_R__PIN);
   nrf_gpio_cfg_output(LED_G__PIN);
   nrf_gpio_cfg_output(LED_B__PIN);
+  nrf_gpio_cfg_input(BUTTON__PIN, NRF_GPIO_PIN_PULLUP);
 
   nrf_gpio_pin_set(LED_R__PIN);
   nrf_gpio_pin_set(LED_G__PIN);
   nrf_gpio_pin_set(LED_B__PIN);
 
   while (1) {
-    
-    // if (leds_state & 1) {
-    //   nrf_gpio_pin_clear(LED_R__PIN);
-    //   leds_state &= ~1; 
-    // } else {
-    //   nrf_gpio_pin_set(LED_R__PIN);
-    //   leds_state |= 1; 
-    // }
 
-    nrf_gpio_pin_clear(LED_R__PIN);
-    // nrf_gpio_pin_set(LED_R__PIN);
+    if (nrf_gpio_pin_read(BUTTON__PIN)) {
+      button_state = 0;
+    } else {
+      button_state = 1;
+    }
 
-    nrf_delay_ms(1000);  
+    if (button_state_previous != button_state) {
+      button_state_previous = button_state;
+      state = (state + 1) % 3;
+    }
+
+    switch (state) {
+      case 0:
+        nrf_gpio_pin_clear(LED_R__PIN);
+        break;
+
+      case 1:
+        nrf_gpio_pin_set(LED_R__PIN);
+        break;
+
+      case 2:
+        switch (leds_state) {
+          case 0:
+            nrf_gpio_pin_clear(LED_R__PIN);
+            leds_state = 1;
+            break;
+
+          case 1:
+            nrf_gpio_pin_set(LED_R__PIN);
+            leds_state = 0;
+            break;
+        }
+    }
+
+    nrf_delay_ms(1000);
   }
 }

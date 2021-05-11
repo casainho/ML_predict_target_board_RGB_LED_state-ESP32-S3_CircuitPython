@@ -786,7 +786,7 @@ void timer_handler(nrf_timer_event_t event_type, void* p_context)
 }
 
 #define SAADC_SAMPLES_IN_BUFFER         1 //4
-#define SAADC_SAMPLE_RATE               50 // in us 
+#define SAADC_SAMPLE_RATE               10000 // in us 
 
 static const nrf_drv_timer_t   m_timer = NRF_DRV_TIMER_INSTANCE(3);
 static nrf_saadc_value_t       m_buffer_pool[2][SAADC_SAMPLES_IN_BUFFER];
@@ -804,7 +804,7 @@ void saadc_sampling_event_init(void)
   APP_ERROR_CHECK(err_code);
 
   /* setup m_timer for compare event */
-  uint32_t ticks = nrf_drv_timer_us_to_ticks(&m_timer,SAADC_SAMPLE_RATE);
+  uint32_t ticks = nrf_drv_timer_us_to_ticks(&m_timer, SAADC_SAMPLE_RATE);
   nrf_drv_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
   nrf_drv_timer_enable(&m_timer);
 
@@ -865,13 +865,13 @@ void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
       ui8_array[ui16_len] = ',';
       ui16_len++;
 
-      if (ui8_counter >= 15) {
+      ui8_counter++;
+      if (ui8_counter >= 16) {
         ui8_counter = 0;
-        ui8_array[ui16_len] = ']';
+        ui8_array[ui16_len - 1] = ']';
+        ui8_array[ui16_len] = '\n';
         ui16_len++;
       }
-
-      ui8_counter++;
 
       err_code = ble_nus_data_send(&m_nus, ui8_array, &ui16_len, m_conn_handle);
       if (err_code == NRF_SUCCESS)

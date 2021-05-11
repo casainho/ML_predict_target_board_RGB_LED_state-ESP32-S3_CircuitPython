@@ -22,4 +22,6 @@ typedef enum {
   LED_B__PIN  = 12,
 } LED_pins_t;
 
+#define BUTTON__PIN 32 + 6 // P1.6
+
 #endif /* PINS_H_ */
