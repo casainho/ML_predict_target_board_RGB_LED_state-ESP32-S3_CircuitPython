@@ -34,17 +34,17 @@ def file_to_np(filename):
 # This is the number of training epochs we will use...
 # Technically it's a little high (looks like some overfitting)
 # if you think of a way to maybe make things better... try it! :-) -MC
-e_pochs = 1500
-num_samples = 5000
+# e_pochs = 1500
+# num_samples = 5000
+e_pochs = 3
+num_samples = 10
+
 train_size = int(num_samples * 0.6)
 test_size = int(num_samples * 0.2)
 validate_size = int(num_samples * 0.2) # we let model.fit() do this for us... just define this for now. -MC
 # Load the data files... EDIT for your own data! -MC
 f_ledoff = file_to_np('led_off.log')[:num_samples]
 f_ledon = file_to_np('led_on.log')[:num_samples]
-
-# print("LED")
-# print(f_ledoff)
 
 # Setup the training data...
 train_data = []
@@ -61,8 +61,7 @@ for i in range(2):
 # training_data = np.array(training_data)
 # training_labels = np.array(training_labels)
 
-# print("training_data")
-# print(training_data[0])
+print(training_data)
 
 # Set aside the test data - this will be used after training to see how we did...
 t_data = []
