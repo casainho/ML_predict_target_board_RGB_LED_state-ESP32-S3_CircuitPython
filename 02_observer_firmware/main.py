@@ -5,14 +5,13 @@ import supervisor
 import busio
 import neopixel
 import time
+from digitalio import DigitalInOut, Direction
 
 wifi.radio.enabled = False
-
 supervisor.runtime.autoreload = False
 
-# 1. Read from UART the other board current RGB LED state
-# 2. Read ADC value, relative to the other board current usage
-# 3. Send the ADC value and RGB LED state to PC (USB connection)
+# SET running_mode ON boot.py FILE
+from boot import running_mode
 
 # ADC pin - board pin 8
 adc_pin = board.IO3
@@ -36,6 +35,13 @@ uart = busio.UART(
 # configure the RGB LED
 led_rgb_pixels = neopixel.NeoPixel(board.NEOPIXEL, 1)
 led_rgb_pixels[0] = (0, 0, 0)
+
+if running_mode == 'usb_pc_enabled':
+    import usb_cdc
+    uart_usb = usb_cdc.data
+    # timeout of 10ms should be enough
+    uart_usb.timeout = 0.010
+    uart_usb.write_timeout = 0.010
 
 def set_rgb_led(r, g, b):
     led_rgb_pixels[0] = (r, g, b)
@@ -62,39 +68,64 @@ adc_reference_voltage = 0
 r = 0
 g = 0
 b = 0
-new_rgb_values = False
+rx_new_rgb_values = False
+tx_new_rgb_values = False
 
 while True:
     
     # when we receive the UART data, the target RGB LED values just changed
-    uart_data = uart.read()
-    if uart_data is not None:
+    target_data_uart = uart.read()
+    if target_data_uart is not None:
         # sometimes the rx UART values are not ok (like at startup)
         # this try except will skip that case
         try:
-            rgb = str(uart_data, 'utf-8').split(',')
+            rgb = str(target_data_uart, 'utf-8').split(',')
             r = int(rgb[0])
             g = int(rgb[1])
             b = int(rgb[2])
-            new_rgb_values = True
+            rx_new_rgb_values = True
         except:
-            # print('UART target rx error')
             pass
         
         # in the case of new RGB values, update the RGB LED and send the values to the PC
-        if new_rgb_values:
-            new_rgb_values = False
+        if rx_new_rgb_values:
+            rx_new_rgb_values = False
             
-            # wait sometime for the RGB LED current to stabilize
-            time.sleep(0.01)
-            
-            # set our RGB LED to replicate the target one
-            set_rgb_led(r, g, b)
-            
-            # send the values to PC
-            print(f'{round(read_target_current(), 6)},{r},{g},{b}')
+            if running_mode == 'usb_pc_enabled':
+                # wait sometime for the RGB LED current to stabilize
+                time.sleep(0.01)
+                
+                # send the values to PC
+                target_current = read_target_current()
+                string_to_send = f'{round(target_current, 6)},{r},{g},{b}\n'
+                uart_usb.write(bytes(string_to_send, "utf-8"))
+                uart_usb.flush()
            
         # reset the buffer as we should not receive any new data up to now
         # this helps to keep in syncronization with the target UART communications
-        uart.reset_input_buffer()
-
+        if uart.in_waiting:
+            uart.reset_input_buffer()
+        
+    if running_mode == 'usb_pc_enabled':
+        data_uart_usb = uart_usb.read()
+        if data_uart_usb is not None:
+            # sometimes the rx UART values are not ok (like at startup)
+            # this try except will skip that case
+            try:
+                rgb = str(data_uart_usb, 'utf-8').split(',')
+                r = int(rgb[0])
+                g = int(rgb[1])
+                b = int(rgb[2])
+                tx_new_rgb_values = True
+            except:
+                pass
+            
+            # set our RGB LED
+            if tx_new_rgb_values:
+                tx_new_rgb_values = False
+                set_rgb_led(r, g, b)
+                
+            # reset the buffer as we should not receive any new data up to now
+            # this helps to keep in syncronization with the PC USB UART communications
+            if uart_usb.in_waiting:
+                uart_usb.reset_input_buffer()
