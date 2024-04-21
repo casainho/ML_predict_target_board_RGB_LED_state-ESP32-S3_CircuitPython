@@ -8,6 +8,7 @@ import random
 
 import supervisor
 supervisor.runtime.autoreload = False
+supervisor.runtime.rgb_status_brightness = 0
 
 wifi.radio.enabled = False
 
@@ -37,9 +38,9 @@ def get_rgb_random():
     
     # we want a new different random value
     while random_counter > 0:
-        r = random.choice(rgb_random_sequence)
-        g = random.choice(rgb_random_sequence)
-        b = random.choice(rgb_random_sequence)
+        r = random.choice(r_random_sequence)
+        g = random.choice(g_random_sequence)
+        b = random.choice(b_random_sequence)
         
         # check if random is different from previous
         if r != r_random_previous or g == g_random_previous or b == b_random_previous:
@@ -49,22 +50,37 @@ def get_rgb_random():
         g_random_previous = g
         b_random_previous = b
         random_counter -= 1
-    
+        
+    value = random.choice(range(3))
+    if value == 0: r = 0
+    elif value == 1: g = 0
+    else: b = 0
+
     return r, g, b
 
-# percentage of RGB value, 1.0 will be full 255 value on each RGB
-rgb_percentage = 0.80
+#########
+# Each RGB color will be set with one of each values
 
-# each RGB color will be set with one of each values
-rgb_random_sequence = [
-    0,
-    int(255 * 0.50 * rgb_percentage),
-    int(255 * 0.80 * rgb_percentage)
+r_random_sequence = [
+    63,
+    127
+]
+
+g_random_sequence = [
+    42,
+    106
+]
+
+b_random_sequence = [
+    21,
+    85
 ]
 
 r_random_previous = 0
 g_random_previous = 0
 b_random_previous = 0
+
+set_rgb_led(0, 0, 0)
 
 while True:
     # get RGB random values and set the RGB LED
@@ -72,8 +88,9 @@ while True:
     set_rgb_led(r, g, b)
     
     # now communicate the current RGB values to the observer board
-    uart.write(bytes(f'{r},{g},{b}', "utf-8"))
+    string_to_send = f'{r},{g},{b}'
+    uart.write(bytes(string_to_send, "utf-8"))
+    print(string_to_send)
 
     # delay time for processing on the observer and PC
-    time.sleep(1)
-        
+    time.sleep(5)

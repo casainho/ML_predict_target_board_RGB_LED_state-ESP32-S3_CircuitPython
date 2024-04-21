@@ -1,7 +1,11 @@
-# running_mode = 'usb_pc_disabled'
-running_mode = 'usb_pc_enabled'
+class RunningMode:
+    USB_PC_DISABLED = 0
+    USB_PC_ENABLED = 1
+    
+running_mode = RunningMode.USB_PC_ENABLED
+#running_mode = RunningMode.USB_PC_DISABLED
 
-if running_mode == 'usb_pc_enabled':
+if running_mode == RunningMode.USB_PC_ENABLED:
     import usb_cdc
     import storage
     

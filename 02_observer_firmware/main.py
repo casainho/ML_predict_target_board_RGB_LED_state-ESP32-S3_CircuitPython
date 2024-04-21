@@ -5,23 +5,31 @@ import supervisor
 import busio
 import neopixel
 import time
-from digitalio import DigitalInOut, Direction
+from boot import RunningMode
+from boot import running_mode
 
+# disable wifi to reduce current usage
 wifi.radio.enabled = False
+
 supervisor.runtime.autoreload = False
 
-# SET running_mode ON boot.py FILE
-from boot import running_mode
+# disable this LED, which should be the RGB LED controlled by the CircuitPyhton supervisor
+supervisor.runtime.rgb_status_brightness = 0
 
 # ADC pin - board pin 8
 adc_pin = board.IO3
+adc = analogio.AnalogIn(adc_pin)
 
-# a value between 1 and 1000
-adc_oversampling = 200
+# filter settings: read ADC every 5ms, and average the samples of 2 seconds
+adc_reading_delta_time = 0.005
+adc_reading_total_time = 2.000
+
+# a low pass filter
+adc_reading_filter_coeficient = 0.01
+adc_value_filtered_value = adc.value
 
 # resistor value to measure the observed target current
-resistor_value = 3.33
-
+resistor_value = 10
 
 # configure UART for communications with the target board
 uart = busio.UART(
@@ -36,7 +44,7 @@ uart = busio.UART(
 led_rgb_pixels = neopixel.NeoPixel(board.NEOPIXEL, 1)
 led_rgb_pixels[0] = (0, 0, 0)
 
-if running_mode == 'usb_pc_enabled':
+if running_mode ==  RunningMode.USB_PC_ENABLED:
     import usb_cdc
     uart_usb = usb_cdc.data
     # timeout of 10ms should be enough
@@ -47,21 +55,37 @@ def set_rgb_led(r, g, b):
     led_rgb_pixels[0] = (r, g, b)
 
 def read_target_current():
-    global adc_reference_voltage
-    global adc_oversampling
+    global adc_value_filtered_value
     
     # read ADC value, doing the oversampling to reduce the noise
     adc_sum = 0
-    with analogio.AnalogIn(adc_pin) as adc:
-        adc_reference_voltage = adc.reference_voltage
-        for i in range(adc_oversampling):
-           adc_sum += adc.value
+    adc_sum_counter = 0
+    read_current_initial_time = time.monotonic()
+    while True:
+        initial_time = time.monotonic()
         
-    adc_value = adc_sum / adc_oversampling
+        # read the ADC value and accumulate it
+        adc_sum += adc.value
+        adc_sum_counter += 1
+        
+        # stop if adc_reading_total_time has passed
+        current_time = time.monotonic()
+        if current_time > (adc_reading_total_time + read_current_initial_time):
+            break
+        
+        # wait adc_reading_delta_time
+        time_to_sleep = adc_reading_delta_time - (current_time - initial_time)
+        time.sleep(time_to_sleep / 1000)
     
-    # calculate the observed target current
-    target_current = (adc_value / 65535 * adc_reference_voltage) / resistor_value
+       
+    adc_value_average = adc_sum / adc_sum_counter
+    
+    adc_value_filtered_value = (adc_value_filtered_value * adc_reading_filter_coeficient) + (adc_value_average * (1.0 - adc_reading_filter_coeficient))
+    
+    # calculate the target current
+    target_current = (adc_value_filtered_value / 65535 * adc.reference_voltage) / resistor_value
     return target_current
+
 
 adc_sum = 0
 adc_reference_voltage = 0
@@ -72,7 +96,6 @@ rx_new_rgb_values = False
 tx_new_rgb_values = False
 
 while True:
-    
     # when we receive the UART data, the target RGB LED values just changed
     target_data_uart = uart.read()
     if target_data_uart is not None:
@@ -87,26 +110,34 @@ while True:
         except:
             pass
         
-        # in the case of new RGB values, update the RGB LED and send the values to the PC
+        # in the case of new RGB values, send the values to the PC
         if rx_new_rgb_values:
             rx_new_rgb_values = False
+                        
+            # wait sometime for the RGB LED current to stabilize
+            time.sleep(2.5)
+                        
+            target_current = read_target_current()
+            string_to_send = f'{round(target_current, 6)},{r},{g},{b}\n'
             
-            if running_mode == 'usb_pc_enabled':
-                # wait sometime for the RGB LED current to stabilize
-                time.sleep(0.01)
-                
-                # send the values to PC
-                target_current = read_target_current()
-                string_to_send = f'{round(target_current, 6)},{r},{g},{b}\n'
+            if running_mode == RunningMode.USB_PC_ENABLED:    
+                # send the values to PC    
                 uart_usb.write(bytes(string_to_send, "utf-8"))
                 uart_usb.flush()
+            
+            elif running_mode ==  RunningMode.USB_PC_DISABLED:
+                # print on console
+                print(target_current)
+                print(f'{r},{g},{b}\n')
+                print()
            
         # reset the buffer as we should not receive any new data up to now
         # this helps to keep in syncronization with the target UART communications
         if uart.in_waiting:
             uart.reset_input_buffer()
-        
-    if running_mode == 'usb_pc_enabled':
+    
+    # when we receive the USB UART data, the target RGB LED values just changed  
+    if running_mode == RunningMode.USB_PC_ENABLED:
         data_uart_usb = uart_usb.read()
         if data_uart_usb is not None:
             # sometimes the rx UART values are not ok (like at startup)
