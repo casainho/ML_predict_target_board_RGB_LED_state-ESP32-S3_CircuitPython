@@ -3,7 +3,7 @@ class RunningMode:
     USB_PC_ENABLED = 1
     
 running_mode = RunningMode.USB_PC_ENABLED
-#running_mode = RunningMode.USB_PC_DISABLED
+# running_mode = RunningMode.USB_PC_DISABLED
 
 if running_mode == RunningMode.USB_PC_ENABLED:
     import usb_cdc

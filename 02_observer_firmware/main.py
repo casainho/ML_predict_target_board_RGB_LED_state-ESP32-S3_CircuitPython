@@ -5,8 +5,9 @@ import supervisor
 import busio
 import neopixel
 import time
-from boot import RunningMode
-from boot import running_mode
+import boot
+from boot import RunningMode, running_mode
+import filter
 
 # disable wifi to reduce current usage
 wifi.radio.enabled = False
@@ -16,20 +17,17 @@ supervisor.runtime.autoreload = False
 # disable this LED, which should be the RGB LED controlled by the CircuitPyhton supervisor
 supervisor.runtime.rgb_status_brightness = 0
 
-# ADC pin - board pin 8
-adc_pin = board.IO3
-adc = analogio.AnalogIn(adc_pin)
+# ADC pin
+adc_pin = board.IO16
 
-# filter settings: read ADC every 5ms, and average the samples of 2 seconds
-adc_reading_delta_time = 0.005
+filter = filter.Filter()
+
+# filter settings: read ADC every 10ms / 100Hz, and get the samples median of 1 second
+adc_reading_delta_time = 0.01
 adc_reading_total_time = 2.000
 
-# a low pass filter
-adc_reading_filter_coeficient = 0.01
-adc_value_filtered_value = adc.value
-
 # resistor value to measure the observed target current
-resistor_value = 10
+resistor_value = 3.33
 
 # configure UART for communications with the target board
 uart = busio.UART(
@@ -44,7 +42,7 @@ uart = busio.UART(
 led_rgb_pixels = neopixel.NeoPixel(board.NEOPIXEL, 1)
 led_rgb_pixels[0] = (0, 0, 0)
 
-if running_mode ==  RunningMode.USB_PC_ENABLED:
+if boot.running_mode == RunningMode.USB_PC_ENABLED:
     import usb_cdc
     uart_usb = usb_cdc.data
     # timeout of 10ms should be enough
@@ -55,18 +53,20 @@ def set_rgb_led(r, g, b):
     led_rgb_pixels[0] = (r, g, b)
 
 def read_target_current():
-    global adc_value_filtered_value
+    adc_value = 0
+    adc_reference_voltage = 0
     
     # read ADC value, doing the oversampling to reduce the noise
-    adc_sum = 0
-    adc_sum_counter = 0
     read_current_initial_time = time.monotonic()
     while True:
         initial_time = time.monotonic()
+
+        # read ADC value
+        with analogio.AnalogIn(adc_pin) as adc:
+            adc_value = adc.value
+            adc_reference_voltage = adc.reference_voltage
         
-        # read the ADC value and accumulate it
-        adc_sum += adc.value
-        adc_sum_counter += 1
+        filter.add_new_sample(adc_value)
         
         # stop if adc_reading_total_time has passed
         current_time = time.monotonic()
@@ -75,16 +75,21 @@ def read_target_current():
         
         # wait adc_reading_delta_time
         time_to_sleep = adc_reading_delta_time - (current_time - initial_time)
-        time.sleep(time_to_sleep / 1000)
+        time.sleep(time_to_sleep)
     
-       
-    adc_value_average = adc_sum / adc_sum_counter
+    mean, median, std = filter.get_end_stats()
+    target_current_median = (median / 65535 * adc_reference_voltage) / resistor_value
     
-    adc_value_filtered_value = (adc_value_filtered_value * adc_reading_filter_coeficient) + (adc_value_average * (1.0 - adc_reading_filter_coeficient))
+    # target_current_mean = (mean / 65535 * adc_reference_voltage) / resistor_value
+    # print(f'adc raw volts: {(adc_value / 65535) * adc_reference_voltage}')
+    # print(f'mean: {mean} -- {(mean / 65535) * adc_reference_voltage} volts')
+    # print(f'median: {median} -- {(median / 65535) * adc_reference_voltage} volts')
+    # print(f'std: {std}')
+    # print(f'current mean: {target_current_mean:.6f}')
+    # print(f'current median: {target_current_median:.6f}')
+    # print()
     
-    # calculate the target current
-    target_current = (adc_value_filtered_value / 65535 * adc.reference_voltage) / resistor_value
-    return target_current
+    return target_current_median
 
 
 adc_sum = 0
@@ -96,6 +101,7 @@ rx_new_rgb_values = False
 tx_new_rgb_values = False
 
 while True:
+
     # when we receive the UART data, the target RGB LED values just changed
     target_data_uart = uart.read()
     if target_data_uart is not None:
@@ -115,7 +121,7 @@ while True:
             rx_new_rgb_values = False
                         
             # wait sometime for the RGB LED current to stabilize
-            time.sleep(2.5)
+            time.sleep(0.5)
                         
             target_current = read_target_current()
             string_to_send = f'{round(target_current, 6)},{r},{g},{b}\n'
@@ -128,7 +134,7 @@ while True:
             elif running_mode ==  RunningMode.USB_PC_DISABLED:
                 # print on console
                 print(target_current)
-                print(f'{r},{g},{b}\n')
+                print(f'{r},{g},{b} --> {r+g+b}') 
                 print()
            
         # reset the buffer as we should not receive any new data up to now
