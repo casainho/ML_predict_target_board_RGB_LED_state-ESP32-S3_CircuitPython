@@ -12,56 +12,36 @@ supervisor.runtime.rgb_status_brightness = 0
 
 wifi.radio.enabled = False
 
+print('\nTARGET\n')
 
+#####################################################3
+#
+# Possible combinations: 255 + 127 + 63
+#
+# 255 / 6 = 43 | 255 -> 212 -> 169 -> 126 -> 83 -> 40 -> 0
+#
 r_random_sequence = [
-    45,
-    85
-]
-
-g_random_sequence = [
-    120,
-    170,
-]
-
-b_random_sequence = [
-    215,
+    0,
+    40,
     255
 ]
 
-rgb_sequence_lists_index =[
-    [0, 0, 0],
-    [0, 0, 1],
-    [0, 1, 0],
-    [0, 1, 1],
-    [1, 0, 0],
-    [1, 0, 1],
-    [1, 1, 0],
-    [1, 1, 1]]
+g_random_sequence = [
+    0,
+    83,
+    212
+]
 
-# https://g.co/gemini/share/174b648d17ed
-# LCG algorithm
-def random_lcg(seed, max_value, repeat_pattern):
-  """Generates a pseudo-random sequence of 1, 2, or 3 with a repeating pattern of 'repeat_pattern' values.
-
-  Args:
-      seed: An initial value to influence the sequence.
-      max_value: The maximum value (exclusive) for the generated sequence (e.g., 3 for 1, 2, 3).
-      repeat_pattern: The length of the repeating pattern.
-
-  Returns:
-      A single integer (1, 2, or 3) based on the current position in the sequence.
-  """
-  state = seed
-  while True:
-    new_state = (state * 1103515245 + 12345) % 2**31
-    value = new_state % max_value + 1
-    state = new_state
-    yield value % repeat_pattern + 1  # Ensure value falls within repeat_pattern
+b_random_sequence = [
+    0,
+    40,
+    255
+]
 
 # configure UART for communications with observer board
 uart = busio.UART(
     board.IO10,
-    None,
+    board.IO9,
     baudrate = 9600,
     timeout = 0.01, # 10ms is enough for writing to the UART
     # NOTE: on CircuitPyhton 8.1.0-beta.2, a value of 512 will make the board to reboot if wifi wireless workflow is not connected
@@ -74,28 +54,75 @@ led_rgb_pixels[0] = (0, 0, 0)
 def set_rgb_led(r, g, b):
     led_rgb_pixels[0] = (r, g, b)
 
-random_generator = random_lcg(
-    4, # seed value
-    len(rgb_sequence_lists_index), # number of lists
-    30) # repeat after 30
-
 def get_rgb_random():
-    
-    # get a random element from rgb_sequence_lists_index
-    # index = next(random_generator) - 2
-    # rgb_sequence_lists_index[index][0]
+    indexes = [0, 1, 2]
+    rgb_index = [0, 0, 0]
+
+    for i in range(len(indexes)):
+        lenght = len(indexes)      
+        index = random.randint(0, (lenght - 1))
+        rgb_index[i] = indexes[index]
         
-    index = random.randint(0, len(rgb_sequence_lists_index))
-        
-    r = r_random_sequence[rgb_sequence_lists_index[index][0]]
-    g = g_random_sequence[rgb_sequence_lists_index[index][1]]
-    b = b_random_sequence[rgb_sequence_lists_index[index][2]]
-        
+        # 0 value can be repeated but not the others
+        if index != 0:
+            indexes.pop(index)
+            
+    r = r_random_sequence[rgb_index[0]]
+    g = g_random_sequence[rgb_index[1]]
+    b = b_random_sequence[rgb_index[2]]
+ 
     return r, g, b
 
+def read_uart_set_rgb_values():
+    target_data_uart = uart.read()
+    if target_data_uart is not None:
+        # sometimes the rx UART values are not ok (like at startup)
+        # this try except will skip that case
+        try:
+            data = str(target_data_uart, 'utf-8').split(',')
+            command = int(data[0])
+            r = int(data[1])
+            g = int(data[2])
+            b = int(data[3])
+            return command, r, g, b
+        except:
+            pass
+        
+        if uart.in_waiting:
+            uart.reset_input_buffer()
+        
+    return None, None, None, None
+
+r = 0
+g = 0
+b = 0
+r_previous = 0
+g_previous = 0
+b_previous = 0
+use_random_rgb = True
 while True:
-    # get RGB random values and set the RGB LED
-    r, g, b = get_rgb_random()
+    # check if RGB values were set by the host
+    command, new_r, new_g, new_b = read_uart_set_rgb_values()
+    if command == 1:
+        use_random_rgb = False
+        r = new_r
+        g = new_g
+        b = new_b
+    elif command == 0:
+        use_random_rgb = True
+    else:
+        # do nothing, just keep the previous RGB values
+        pass       
+    
+    if use_random_rgb:
+        # avoid repetition
+        while r == r_previous and g == g_previous and b == b_previous:
+            r, g, b = get_rgb_random()
+            
+        r_previous = r
+        g_previous = g
+        b_previous = b
+            
     set_rgb_led(r, g, b)
 
     # now communicate the current RGB values to the observer board
@@ -104,5 +131,4 @@ while True:
     print(string_to_send)
 
     # delay time for processing on the observer and PC
-    time.sleep(10.0)
-    
+    time.sleep(5.0)

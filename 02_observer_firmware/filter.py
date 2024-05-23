@@ -65,7 +65,7 @@ filter_taps = np.array([
   6.320404326560145e-7
 ])
 
-class Filter:
+class FilterLowPass:
   def __init__(self):
     self.len_filter_taps = len(filter_taps)
     self.history = np.zeros(self.len_filter_taps)  # Initialize history with zeros
@@ -99,6 +99,22 @@ class Filter:
     return acc
 
   def get_end_stats(self):
+    # print(f'len(self.samples): {len(self.samples)}')
+    mean = np.mean(self.samples)
+    median = np.median(self.samples)
+    std = np.std(self.samples)
+    self.samples = np.array([])
+    return mean, median, std
+  
+class FilterMedian:
+  def __init__(self):
+    self.samples = np.array([])
+    
+  def add_new_sample(self, new_sample):
+    self.samples = np.concatenate((self.samples, np.array([new_sample])))
+
+  def get_end_stats(self):
+    # print(f'len(self.samples): {len(self.samples)}')
     mean = np.mean(self.samples)
     median = np.median(self.samples)
     std = np.std(self.samples)

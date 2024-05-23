@@ -14,4 +14,3 @@ if running_mode == RunningMode.USB_PC_ENABLED:
 
     # Enable USB UART data and keep also the USB UART console data enabled
     usb_cdc.enable(console=False, data=True)
-
