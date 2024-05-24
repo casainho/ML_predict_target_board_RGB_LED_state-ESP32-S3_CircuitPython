@@ -14,28 +14,19 @@ wifi.radio.enabled = False
 
 print('\nTARGET\n')
 
-#####################################################3
-#
-# Possible combinations: 255 + 127 + 63
-#
-# 255 / 6 = 43 | 255 -> 212 -> 169 -> 126 -> 83 -> 40 -> 0
-#
 r_random_sequence = [
     0,
-    40,
     255
 ]
 
 g_random_sequence = [
     0,
-    83,
-    212
+    225
 ]
 
 b_random_sequence = [
     0,
-    40,
-    255
+    195
 ]
 
 # configure UART for communications with observer board
@@ -55,17 +46,11 @@ def set_rgb_led(r, g, b):
     led_rgb_pixels[0] = (r, g, b)
 
 def get_rgb_random():
-    indexes = [0, 1, 2]
     rgb_index = [0, 0, 0]
 
-    for i in range(len(indexes)):
-        lenght = len(indexes)      
-        index = random.randint(0, (lenght - 1))
-        rgb_index[i] = indexes[index]
-        
-        # 0 value can be repeated but not the others
-        if index != 0:
-            indexes.pop(index)
+    for i in [0, 1, 2]:
+        index = random.randint(0, 1)
+        rgb_index[i] = index
             
     r = r_random_sequence[rgb_index[0]]
     g = g_random_sequence[rgb_index[1]]
@@ -131,4 +116,4 @@ while True:
     print(string_to_send)
 
     # delay time for processing on the observer and PC
-    time.sleep(5.0)
+    time.sleep(2.5)

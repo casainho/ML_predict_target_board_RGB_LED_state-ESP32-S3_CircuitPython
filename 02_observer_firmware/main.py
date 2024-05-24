@@ -5,8 +5,14 @@ import supervisor
 import neopixel
 import time
 from adafruit_ina260 import INA260, Mode, ConversionTime, AveragingCount
-from boot import RunningMode, running_mode
 import filter
+
+class RunningMode:
+    USB_PC_DISABLED = 0
+    USB_PC_ENABLED = 1
+    
+running_mode = RunningMode.USB_PC_ENABLED
+# running_mode = RunningMode.USB_PC_DISABLED
 
 if running_mode == RunningMode.USB_PC_DISABLED:
     print('\nOBSERVER\n')
@@ -106,11 +112,11 @@ def read_target_current_filtered():
     
     mean, median, std = filter_current.get_end_stats()
     
-    # if running_mode == RunningMode.USB_PC_DISABLED:
-    #     print(f'current mean: {mean:.6f}')
-    #     print(f'current median: {median:.6f}')
-    #     print(f'std: {std}')
-    #     print()
+    if running_mode == RunningMode.USB_PC_DISABLED:
+        print(f'current mean: {mean:.6f}')
+        print(f'current median: {median:.6f}')
+        print(f'std: {std}')
+        print()
     
     return median
 
@@ -142,7 +148,7 @@ while True:
             rx_new_rgb_values = False
                         
             # wait sometime for the RGB LED current to stabilize
-            time.sleep(0.05)
+            time.sleep(0.1)
                         
             target_current = read_target_current_filtered()
             string_to_send = f'{round(target_current, 6)},{r},{g},{b}\n'
@@ -169,6 +175,7 @@ while True:
         if data_uart_usb is not None:
             # sometimes the rx UART values are not ok (like at startup)
             # this try except will skip that case
+            tx_new_rgb_values = False
             try:
                 data = str(data_uart_usb, 'utf-8').split(',')
                 command = int(data[0])
@@ -179,9 +186,7 @@ while True:
             except:
                 pass
             
-            if tx_new_rgb_values:
-                tx_new_rgb_values = False
-                
+            if tx_new_rgb_values:                
                 # set our RGB LED
                 if command == 2:
                     set_rgb_led(r, g, b)
