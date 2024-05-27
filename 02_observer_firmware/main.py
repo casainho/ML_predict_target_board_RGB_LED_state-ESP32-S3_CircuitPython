@@ -6,13 +6,15 @@ import neopixel
 import time
 from adafruit_ina260 import INA260, Mode, ConversionTime, AveragingCount
 import filter
+import decision_tree_custom
+clf_microcontroller = decision_tree_custom.DecisionTreeCustom()
 
 class RunningMode:
     USB_PC_DISABLED = 0
     USB_PC_ENABLED = 1
     
-running_mode = RunningMode.USB_PC_ENABLED
-# running_mode = RunningMode.USB_PC_DISABLED
+# running_mode = RunningMode.USB_PC_ENABLED
+running_mode = RunningMode.USB_PC_DISABLED
 
 if running_mode == RunningMode.USB_PC_DISABLED:
     print('\nOBSERVER\n')
@@ -113,10 +115,11 @@ def read_target_current_filtered():
     mean, median, std = filter_current.get_end_stats()
     
     if running_mode == RunningMode.USB_PC_DISABLED:
-        print(f'current mean: {mean:.6f}')
-        print(f'current median: {median:.6f}')
-        print(f'std: {std}')
-        print()
+        # print(f'current mean: {mean:.6f}')
+        # print(f'current median: {median:.6f}')
+        # print(f'std: {std}')
+        # print()
+        pass
     
     return median
 
@@ -151,7 +154,11 @@ while True:
             time.sleep(0.1)
                         
             target_current = read_target_current_filtered()
-            string_to_send = f'{round(target_current, 6)},{r},{g},{b}\n'
+            string_to_send = f'{round(target_current)},{r},{g},{b}\n'
+            
+            r, g, b = clf_microcontroller.predict(target_current)
+            set_rgb_led(r, g, b)
+            print(f'predicted values on microcontroller: {r:3}, {g:3}, {b:3}')
             
             if running_mode == RunningMode.USB_PC_ENABLED:
                 # send the values to PC    
@@ -160,8 +167,8 @@ while True:
             
             elif running_mode == RunningMode.USB_PC_DISABLED:
                 # print on console
-                print(f'target_current: {target_current}')
-                print(f'r,g,b: {r},{g},{b}') 
+                print(f'target_current: {target_current: .6f}')
+                print(f'r,g,b: {r:3}, {g:3}, {b:3}')    
                 print()
            
         # reset the buffer as we should not receive any new data up to now
