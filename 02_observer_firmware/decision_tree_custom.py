@@ -17,16 +17,16 @@ class DecisionTreeCustom:
     elif x <= 0.084:
       y = [0, 0, 195]
       
-    elif not x <= 0.093:
-      if not x <= 0.100:
-        y = [255, 0, 0]
-      else:
-        y = [255, 0, 195]
-        
-    else:
+    elif x <= 0.093:
       if x <= 0.087:
         y = [0, 225, 0]
       else:
+        y = [255, 0, 0]
+      
+    else:
+      if x <= 0.100:
         y = [0, 225, 195]
+      else:
+        y = [255, 0, 195]
         
     return y[0], y[1], y[2]

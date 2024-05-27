@@ -2,8 +2,8 @@ class RunningMode:
     USB_PC_DISABLED = 0
     USB_PC_ENABLED = 1
     
-running_mode = RunningMode.USB_PC_ENABLED
-# running_mode = RunningMode.USB_PC_DISABLED
+# running_mode = RunningMode.USB_PC_ENABLED
+running_mode = RunningMode.USB_PC_DISABLED
 
 if running_mode == RunningMode.USB_PC_ENABLED:
     # Disabling USB Mass Storage as the USB endpoints are needed to send data to PC

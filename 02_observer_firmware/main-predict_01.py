@@ -67,8 +67,9 @@ uart = busio.UART(
     board.IO10,
     board.IO9,
     baudrate = 9600,
-    timeout = 0.002, # 10ms is enough for reading the UART
-    receiver_buffer_size = 64)
+    timeout = 0.010, # 10ms is enough for reading the UART
+    # NOTE: on CircuitPyhton 8.1.0-beta.2, a value of 512 will make the board to reboot if wifi wireless workflow is not connected
+    receiver_buffer_size = 1024)
 
 # configure the RGB LED
 led_rgb_pixels = neopixel.NeoPixel(board.NEOPIXEL, 1)
@@ -109,11 +110,6 @@ def read_target_current_filtered():
         time_to_sleep = reading_current_delta_time - (current_time - initial_time)
         # if running_mode == RunningMode.USB_PC_DISABLED:
         #     print(f'time_to_sleep: {time_to_sleep}')
-        
-        # because sometimes seems there is a long time measured.....
-        if time_to_sleep > reading_current_delta_time or time_to_sleep < 0:
-            time_to_sleep = reading_current_delta_time
-        
         time.sleep(time_to_sleep)
     
     mean, median, std = filter_current.get_end_stats()
@@ -134,23 +130,81 @@ rx_new_rgb_values = False
 tx_new_rgb_values = False
 command = 0
 
-previous_rgb_list = [0, 0, 0]
-rgb_equal_counter = 0
 while True:
-                        
-    target_current = read_target_current_filtered()
-    
-    # clf_init_time = time.monotonic()
-    r, g, b = clf_microcontroller.predict(target_current)
-    # print(f'processing time microcontroller classifier: {time.monotonic() - clf_init_time}')
-    
-    if [r, g, b] == previous_rgb_list:
-        if rgb_equal_counter < 2:
-            rgb_equal_counter += 1
-    else:
-        previous_rgb_list = [r, g, b]
-        rgb_equal_counter = 0
+
+    # when we receive the UART data, the target RGB LED values just changed
+    target_data_uart = uart.read()
+    if target_data_uart is not None:
+        # sometimes the rx UART values are not ok (like at startup)
+        # this try except will skip that case
+        try:
+            data = str(target_data_uart, 'utf-8').split(',')
+            r = int(data[0])
+            g = int(data[1])
+            b = int(data[2])
+            rx_new_rgb_values = True
+        except:
+            pass
         
-    if rgb_equal_counter >= 2:  
-        set_rgb_led(r, g, b)
-        print(f'{r:3}, {g:3}, {b:3} - {target_current:.6f}')
+        # in the case of new RGB values, send the values to the PC
+        if rx_new_rgb_values:
+            rx_new_rgb_values = False
+                        
+            # wait sometime for the RGB LED current to stabilize
+            time.sleep(0.1)
+                        
+            target_current = read_target_current_filtered()
+            string_to_send = f'{round(target_current)},{r},{g},{b}\n'
+            
+            clf_init_time = time.monotonic()
+            r, g, b = clf_microcontroller.predict(target_current)
+            print(f'processing time microcontroller classifier: {time.monotonic()} - {clf_init_time}')
+            
+            set_rgb_led(r, g, b)
+            print(f'predicted values on microcontroller: {r:3}, {g:3}, {b:3}')
+            
+            if running_mode == RunningMode.USB_PC_ENABLED:
+                # send the values to PC    
+                uart_usb.write(bytes(string_to_send, "utf-8"))
+                uart_usb.flush()
+            
+            elif running_mode == RunningMode.USB_PC_DISABLED:
+                # print on console
+                print(f'target_current: {target_current: .6f}')
+                print(f'r,g,b: {r:3}, {g:3}, {b:3}')    
+                print()
+           
+        # reset the buffer as we should not receive any new data up to now
+        # this helps to keep in syncronization with the target UART communications
+        if uart.in_waiting:
+            uart.reset_input_buffer()
+    
+    # when we receive the USB UART data, the target RGB LED values just changed  
+    if running_mode == RunningMode.USB_PC_ENABLED:
+        data_uart_usb = uart_usb.read()
+        if data_uart_usb is not None:
+            # sometimes the rx UART values are not ok (like at startup)
+            # this try except will skip that case
+            tx_new_rgb_values = False
+            try:
+                data = str(data_uart_usb, 'utf-8').split(',')
+                command = int(data[0])
+                r = int(data[1])
+                g = int(data[2])
+                b = int(data[3])
+                tx_new_rgb_values = True
+            except:
+                pass
+            
+            if tx_new_rgb_values:                
+                # set our RGB LED
+                if command == 2:
+                    set_rgb_led(r, g, b)
+                else:
+                    string_to_send = f'{command},{r},{g},{b}'
+                    uart.write(bytes(string_to_send, "utf-8"))
+
+            # reset the buffer as we should not receive any new data up to now
+            # this helps to keep in syncronization with the PC USB UART communications
+            if uart_usb.in_waiting:
+                uart_usb.reset_input_buffer()
