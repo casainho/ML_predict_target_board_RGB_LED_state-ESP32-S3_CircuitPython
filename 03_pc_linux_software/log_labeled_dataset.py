@@ -70,7 +70,7 @@ while True:
                 
                 # just for debug
                 print(string_to_log)
-            01_target_firmware/main.py
+            
             rx_new_data = False
             
             # reset any bytes on the input buffer

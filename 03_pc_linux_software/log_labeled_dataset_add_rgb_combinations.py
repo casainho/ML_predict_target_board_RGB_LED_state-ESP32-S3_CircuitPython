@@ -10,10 +10,10 @@ def handle_sigint(sig, frame):
 signal.signal(signal.SIGINT, handle_sigint)  # Register the signal handler
 
 # open datset file
-filename_in = 'labeled_dataset.csv'
+filename_in = './labeled_dataset_2024.05.24-03h39m42s.csv'
 labeled_dataset_file = open(filename_in, "r")
 
-filename_out = 'labeled_dataset-rgb_combinations_labeled.csv'
+filename_out = './labeled_dataset_2024.05.24-03h39m42s-rgb_combinations_labeled.csv'
 labeled_dataset_file_rgb_combinations_labeled = open(filename_out, "w")
 
 unique_combinations_rgb = []
