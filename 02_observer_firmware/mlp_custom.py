@@ -1,18 +1,28 @@
-from ulab import numpy as np
+import numpy as np
 
 class MLP:
-  def __init__(self, input_size, hidden_size, output_size):
-    # Initialize weights and biases with random values
-    self.weights = [np.random.rand(input_size, hidden_size),
-                     np.random.rand(hidden_size, output_size)]
-    self.biases = [np.zeros((hidden_size, 1)), np.zeros((output_size, 1))]
+
+  def __init__(self, weights, biases, classes):
+    self._weights = weights
+    self._biases = biases
+    self._num_layers = len(self._biases)
+    self._classes = classes
 
   def relu(self, x):
-    # ReLU activation function (max(0, x))
     return np.maximum(0, x)
 
+  def activation_function(self, x):
+    return self.relu(x)
+
   def predict(self, X):
-    # Forward propagation
-    layer1 = self.relu(np.dot(X, self.weights[0]) + self.biases[0])
-    output = self.relu(np.dot(layer1, self.weights[1]) + self.biases[1])
-    return output
+    layer = X
+    weights = self._weights.copy()
+    biases = self._biases.copy()
+    for layer_index in range(self._num_layers):
+      layer = np.dot(layer, weights[layer_index]) + biases[layer_index]
+      
+      # using identity activation function, so no need to call the activation_function()
+      # layer = self.activation_function(layer)
+      
+    node_number = np.argmax(layer[0].tolist())
+    return self._classes[node_number]
