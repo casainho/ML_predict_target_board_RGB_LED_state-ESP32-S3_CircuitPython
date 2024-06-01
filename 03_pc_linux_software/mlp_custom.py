@@ -8,21 +8,32 @@ class MLP:
     self._num_layers = len(self._biases)
     self._classes = classes
 
+  def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+  
+  def tanh(x):
+    return np.tanh(x)
+
   def relu(self, x):
     return np.maximum(0, x)
 
   def activation_function(self, x):
-    return self.relu(x)
+    return self.tanh(x)
 
   def predict(self, X):
     layer = X
     weights = self._weights.copy()
     biases = self._biases.copy()
+    
+    first_layer = []
     for layer_index in range(self._num_layers):
       layer = np.dot(layer, weights[layer_index]) + biases[layer_index]
+      
+      if layer_index == 0:
+        first_layer = layer
 
       # using identity activation function, so no need to call the activation_function()
-      # layer = self.relu(layer)
+      # layer = self.activation_function(layer)
       
     node_number = np.argmax(layer[0].tolist())
-    return self._classes[node_number]
+    return self._classes[node_number], layer, first_layer

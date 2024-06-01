@@ -1,4 +1,4 @@
-import numpy as np
+from ulab import numpy as np
 
 class MLP:
 
@@ -18,11 +18,12 @@ class MLP:
     layer = X
     weights = self._weights.copy()
     biases = self._biases.copy()
+    
     for layer_index in range(self._num_layers):
       layer = np.dot(layer, weights[layer_index]) + biases[layer_index]
-      
+
       # using identity activation function, so no need to call the activation_function()
-      # layer = self.activation_function(layer)
-      
-    node_number = np.argmax(layer[0].tolist())
-    return self._classes[node_number]
+      # layer = self.relu(layer)
+
+    node_number = np.argmax(layer.tolist())
+    return self._classes[node_number], node_number
